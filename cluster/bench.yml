@@ -1,0 +1,208 @@
+---
+- hosts: localhost
+  tasks:
+    - name: set global facts
+      set_fact:
+        bench_run_id: "{{ ansible_date_time.iso8601_basic }}"
+        dask_scheduler_port: 12345
+
+
+- hosts: head
+  remote_user: root
+  vars:
+    dask_scheduler_port: "{{ hostvars['localhost'].dask_scheduler_port }}"
+  tasks:
+    - name: open dask-scheduler port
+      iptables:
+        chain: INPUT
+        action: insert
+        rule_num: 1
+        protocol: tcp
+        destination_port: "{{ dask_scheduler_port }}"
+        jump: ACCEPT
+
+- hosts: head
+  remote_user: clausen
+  vars:
+    repo_url: https://github.com/libertem/libertem
+    venv_dir: /Users/clausen/libertem-bench-venv
+    checkout_dir: /Users/clausen/libertem-bench/
+    venv_pip: "{{ venv_dir }}/bin/pip"
+    venv_python: "{{ venv_python }}/bin/python"
+    dask_scheduler_port: "{{ hostvars['localhost'].dask_scheduler_port }}"
+  tasks:
+    - name: clone libertem repository
+      git:
+        repo: "{{ repo_url }}"
+        dest: "{{ checkout_dir }}"
+    - name: create virtualenv
+      shell: "python3 -m venv {{ venv_dir }}"
+      args:
+        creates: "{{ venv_dir }}"
+    - name: install libertem and dependencies into venv
+      shell: "{{ venv_pip }} install -e {{ checkout_dir }}[torch]"
+    - name: run dask-scheduler on head node
+      command: "{{ venv_dir }}/bin/dask-scheduler --port {{ dask_scheduler_port }}"
+      async: 3600
+      poll: 0
+      register: head_scheduler_job
+
+- hosts: cluster
+  remote_user: root
+  become_user: benchmark
+  become_method: su
+  become_flags: --login
+  become: yes
+  vars:
+    venv_dir: /tmp/libertem-bench-venv/
+    venv_pip: "{{ venv_dir }}/bin/pip"
+    repo_url: https://github.com/libertem/libertem
+    checkout_dir: /tmp/libertem-bench/
+    dask_scheduler_port: "{{ hostvars['localhost'].dask_scheduler_port }}"
+    bench_run_id: "{{ hostvars['localhost'].bench_run_id }}"
+    local_result_folder: "results/{{ bench_run_id }}/"
+  tasks:
+    - name: allow moellenstedt to connect to cluster nodes
+      iptables:
+        chain: INPUT
+        action: insert
+        rule_num: 1
+        protocol: tcp
+        source: 134.94.162.235
+        jump: ACCEPT
+      become_user: root
+    - name: check for existing tmpfs mounts
+      command: grep -xFq "none /root/.ansible tmpfs rw,relatime 0 0" /proc/mounts
+      register: check_tmpfs
+      ignore_errors: yes
+      changed_when: no
+    - name: mount ansible tmpfs
+      command: mount none -t tmpfs "{{ item }}"
+      become_user: root
+      with_items:
+        - /root/.ansible_async
+        - /root/.ansible
+      when: check_tmpfs.rc == 1
+    - name: mount tmpfs as home for benchmark user
+      command: mount none -t tmpfs /home/benchmark -ouid=benchmark,gid=benchmark
+      become_user: root
+      when: check_tmpfs.rc == 1
+    - name: enable performance cpufreq governor
+      command: cpupower frequency-set -g performance
+      become_user: root
+    - name: create local results folder
+      local_action: "shell mkdir -p {{ local_result_folder }}"
+      become: no
+    - name: transfer FIO benchmark definition file
+      copy:
+        src: aio-read-single.fio
+        dest: /tmp/
+      tags: fio
+      become_user: root
+    - name: create FIO data directory
+      shell: mkdir -p /data/fio/
+      tags: fio
+      become_user: root
+    - name: run FIO benchmark
+      shell: fio /tmp/aio-read-single.fio --output-format=json+
+      become_user: root
+      register: fio_result
+      tags: fio
+    - name: collect FIO results
+      local_action: "copy content={{ fio_result.stdout }} dest={{ local_result_folder }}/fio_result_{{ ansible_hostname }}.json"
+      tags: fio
+    - name: clone libertem repository
+      git:
+        repo: "{{ repo_url }}"
+        dest: "{{ checkout_dir }}"
+    - name: create virtualenv
+      shell: "python36 -m venv {{ venv_dir }}"
+      args:
+        creates: "{{ venv_dir }}"
+    - name: copy over psutil wheel
+      copy:
+        src: psutil-5.5.1-cp36-cp36m-linux_x86_64.whl
+        dest: /tmp/
+    - name: install psutil
+      shell: "{{ venv_pip }} install /tmp/psutil-5.5.1-cp36-cp36m-linux_x86_64.whl"
+    - name: install libertem and dependencies into venv
+      shell: "{{ venv_pip }} install -e {{ checkout_dir }}[torch]"
+    - name: run dask-worker
+      shell: chdir=/tmp/ "{{ venv_dir }}/bin/dask-worker" --preload libertem.preload --nthreads=1 --nprocs=8 --no-bokeh "tcp://moellenstedt:{{ dask_scheduler_port }}"
+      async: 3600
+      poll: 0
+      environment:
+        OMP_NUM_THREADS: 1
+        MKL_NUM_THREADS: 1
+        OPENBLAS_NUM_THREADS: 1
+      register: cluster_worker_job
+    - debug:
+        var: cluster_worker_job
+
+- hosts: head
+  remote_user: clausen
+  vars:
+    venv_dir: /Users/clausen/libertem-bench-venv
+    venv_python: "{{ venv_dir }}/bin/python"
+    dask_scheduler_port: "{{ hostvars['localhost'].dask_scheduler_port }}"
+  tasks:
+    - name: copy libertem benchmark scripts
+      copy:
+        src: ./lt/
+        dest: /tmp/bench-scripts/lt/
+    - name: run libertem benchmark 1 (tiled20, direct, single mask)
+      command: "{{ venv_python }} /tmp/bench-scripts/lt/bench-tiled20.py --scheduler-uri tcp://moellenstedt:{{ dask_scheduler_port }}"
+      register: bench_1_result
+    - debug:
+        var: bench_1_result
+    - name: run libertem benchmark 2 (tiled20, mmap, single mask)
+      command: "{{ venv_python }} /tmp/bench-scripts/lt/bench-tiled20.py --scheduler-uri tcp://moellenstedt:{{ dask_scheduler_port }} --no-direct"
+      register: bench_2_result
+    - debug:
+        var: bench_2_result
+    - name: kill dask scheduler
+      shell: killall dask-scheduler -u clausen -w
+    - name: status check for scheduler
+      async_status:
+        jid: "{{ head_scheduler_job.ansible_job_id }}"
+      register: async_poll_results
+      until: async_poll_results.finished
+      retries: 5
+      ignore_errors: yes
+
+
+- hosts: cluster
+  remote_user: root
+  become_user: benchmark
+  become_method: su
+  become: yes
+  tasks:
+    - debug:
+        var: cluster_worker_job
+    - name: kill dask worker
+      shell: killall dask-worker -u benchmark -w
+      tags:
+        - worker
+        - kill-worker
+    - name: status check for worker
+      async_status:
+        jid: "{{ cluster_worker_job.ansible_job_id }}"
+      register: async_poll_results
+      until: async_poll_results.finished
+      retries: 5
+      ignore_errors: yes
+
+
+- hosts: head
+  remote_user: root
+  vars:
+    dask_scheduler_port: "{{ hostvars['localhost'].dask_scheduler_port }}"
+  tasks:
+    - name: close dask-scheduler port
+      iptables:
+        chain: INPUT
+        source: 192.168.5.0/24
+        protocol: tcp
+        destination_port: "{{ dask_scheduler_port }}"
+        jump: ACCEPT
+        state: absent
