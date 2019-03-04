@@ -151,12 +151,12 @@
         src: ./lt/
         dest: /tmp/bench-scripts/lt/
     - name: run libertem benchmark 1 (tiled20, direct, single mask)
-      command: "{{ venv_python }} /tmp/bench-scripts/lt/bench-tiled20.py --scheduler-uri tcp://moellenstedt:{{ dask_scheduler_port }}"
+      command: "{{ venv_python }} /tmp/bench-scripts/lt/bench-tiled20.py --scheduler-uri tcp://moellenstedt:{{ dask_scheduler_port }} --method=direct"
       register: bench_1_result
     - debug:
         var: bench_1_result
     - name: run libertem benchmark 2 (tiled20, mmap, single mask)
-      command: "{{ venv_python }} /tmp/bench-scripts/lt/bench-tiled20.py --scheduler-uri tcp://moellenstedt:{{ dask_scheduler_port }} --no-direct"
+      command: "{{ venv_python }} /tmp/bench-scripts/lt/bench-tiled20.py --scheduler-uri tcp://moellenstedt:{{ dask_scheduler_port }} --method=mmap"
       register: bench_2_result
     - debug:
         var: bench_2_result
