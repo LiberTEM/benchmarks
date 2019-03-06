@@ -18,12 +18,19 @@ import json
 
 class BenchmarkDaskExecutor(DaskJobExecutor):
     def __init__(self, node_limit=None, *args, **kwargs):
+        """
+        Dask executor that can limit the number of hosts that it runs jobs on.
+        """
         super().__init__(*args, **kwargs)
         self._node_limit = node_limit
 
     def get_available_workers(self):
         """
-        returns list of dict with keys 'name' and 'host'
+        Get available workers. We override this method to limit
+        the number of hosts that participate in the benchmark, as
+        passed to the constructor as `node_limit`.
+
+        returns list of dict with keys `name` and `host`
         """
         workers = super().get_available_workers()
         if self._node_limit is None:
