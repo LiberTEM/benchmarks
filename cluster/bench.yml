@@ -155,7 +155,7 @@
         dest: /tmp/bench-scripts/lt/
 
     - name: run libertem benchmark 1 (tiled20, direct, single mask)
-      command: "{{ venv_python }} /tmp/bench-scripts/lt/bench-tiled20.py --scheduler-uri tcp://moellenstedt:{{ dask_scheduler_port }} --method=direct"
+      command: "{{ venv_python }} /tmp/bench-scripts/lt/rawbench.py --scheduler-uri tcp://moellenstedt:{{ dask_scheduler_port }} --method=direct"
       register: bench_result
     - debug:
         var: bench_result
@@ -164,7 +164,7 @@
       become: no
 
     - name: run libertem benchmark 2 (tiled20, mmap, single mask)
-      command: "{{ venv_python }} /tmp/bench-scripts/lt/bench-tiled20.py --scheduler-uri tcp://moellenstedt:{{ dask_scheduler_port }} --method=mmap"
+      command: "{{ venv_python }} /tmp/bench-scripts/lt/rawbench.py --scheduler-uri tcp://moellenstedt:{{ dask_scheduler_port }} --method=mmap"
       register: bench_result
     - debug:
         var: bench_result
@@ -173,7 +173,7 @@
       become: no
 
     - name: run libertem benchmark 3 (tiled20, simple read, single mask)
-      command: "{{ venv_python }} /tmp/bench-scripts/lt/bench-tiled20.py --scheduler-uri tcp://moellenstedt:{{ dask_scheduler_port }} --method=read"
+      command: "{{ venv_python }} /tmp/bench-scripts/lt/rawbench.py --scheduler-uri tcp://moellenstedt:{{ dask_scheduler_port }} --method=read"
       register: bench_result
     - debug:
         var: bench_result
@@ -183,7 +183,7 @@
 
 
     - name: run libertem benchmark 4 (tiled20, direct, single mask, 1 node)
-      command: "{{ venv_python }} /tmp/bench-scripts/lt/bench-tiled20.py --scheduler-uri tcp://moellenstedt:{{ dask_scheduler_port }} --method=direct --num-nodes=1"
+      command: "{{ venv_python }} /tmp/bench-scripts/lt/rawbench.py --scheduler-uri tcp://moellenstedt:{{ dask_scheduler_port }} --method=direct --num-nodes=1"
       register: bench_result
     - debug:
         var: bench_result
@@ -192,7 +192,7 @@
       become: no
 
     - name: run libertem benchmark 5 (tiled20, direct, single mask, 2 nodes)
-      command: "{{ venv_python }} /tmp/bench-scripts/lt/bench-tiled20.py --scheduler-uri tcp://moellenstedt:{{ dask_scheduler_port }} --method=direct --num-nodes=2"
+      command: "{{ venv_python }} /tmp/bench-scripts/lt/rawbench.py --scheduler-uri tcp://moellenstedt:{{ dask_scheduler_port }} --method=direct --num-nodes=2"
       register: bench_result
     - debug:
         var: bench_result
@@ -201,7 +201,7 @@
       become: no
 
     - name: run libertem benchmark 6 (tiled20, direct, single mask, 4 nodes)
-      command: "{{ venv_python }} /tmp/bench-scripts/lt/bench-tiled20.py --scheduler-uri tcp://moellenstedt:{{ dask_scheduler_port }} --method=direct --num-nodes=4"
+      command: "{{ venv_python }} /tmp/bench-scripts/lt/rawbench.py --scheduler-uri tcp://moellenstedt:{{ dask_scheduler_port }} --method=direct --num-nodes=4"
       register: bench_result
     - debug:
         var: bench_result
@@ -210,7 +210,7 @@
       become: no
 
     - name: run libertem benchmark 7 (tiled20, direct, single mask, 8 nodes)
-      command: "{{ venv_python }} /tmp/bench-scripts/lt/bench-tiled20.py --scheduler-uri tcp://moellenstedt:{{ dask_scheduler_port }} --method=direct --num-nodes=8"
+      command: "{{ venv_python }} /tmp/bench-scripts/lt/rawbench.py --scheduler-uri tcp://moellenstedt:{{ dask_scheduler_port }} --method=direct --num-nodes=8"
       register: bench_result
     - debug:
         var: bench_result
@@ -219,7 +219,7 @@
       become: no
 
     - name: run libertem benchmark 8 (tiled, mmap, single mask, 1 node)
-      command: "{{ venv_python }} /tmp/bench-scripts/lt/bench-tiled20.py --scheduler-uri tcp://moellenstedt:{{ dask_scheduler_port }} --method=mmap --num-nodes=1 --path=/data/tiled.raw --stackheight=512 --scan-size=768,512"
+      command: "{{ venv_python }} /tmp/bench-scripts/lt/rawbench.py --scheduler-uri tcp://moellenstedt:{{ dask_scheduler_port }} --method=mmap --num-nodes=1 --path=/data/tiled.raw --stackheight=512 --scan-size=768,512"
       register: bench_result
     - debug:
         var: bench_result
@@ -228,7 +228,7 @@
       become: no
 
     - name: run libertem benchmark 9 (tiled, mmap, single mask, 2 nodes)
-      command: "{{ venv_python }} /tmp/bench-scripts/lt/bench-tiled20.py --scheduler-uri tcp://moellenstedt:{{ dask_scheduler_port }} --method=mmap --num-nodes=2 --path=/data/tiled.raw --stackheight=512 --scan-size=768,512"
+      command: "{{ venv_python }} /tmp/bench-scripts/lt/rawbench.py --scheduler-uri tcp://moellenstedt:{{ dask_scheduler_port }} --method=mmap --num-nodes=2 --path=/data/tiled.raw --stackheight=512 --scan-size=768,512"
       register: bench_result
     - debug:
         var: bench_result
@@ -237,7 +237,7 @@
       become: no
 
     - name: run libertem benchmark 10 (tiled, mmap, single mask, 4 nodes)
-      command: "{{ venv_python }} /tmp/bench-scripts/lt/bench-tiled20.py --scheduler-uri tcp://moellenstedt:{{ dask_scheduler_port }} --method=mmap --num-nodes=4 --path=/data/tiled.raw --stackheight=512 --scan-size=768,512"
+      command: "{{ venv_python }} /tmp/bench-scripts/lt/rawbench.py --scheduler-uri tcp://moellenstedt:{{ dask_scheduler_port }} --method=mmap --num-nodes=4 --path=/data/tiled.raw --stackheight=512 --scan-size=768,512"
       register: bench_result
     - debug:
         var: bench_result
@@ -246,7 +246,7 @@
       become: no
 
     - name: run libertem benchmark 11 (tiled, mmap, single mask, 8 nodes)
-      command: "{{ venv_python }} /tmp/bench-scripts/lt/bench-tiled20.py --scheduler-uri tcp://moellenstedt:{{ dask_scheduler_port }} --method=mmap --num-nodes=8 --path=/data/tiled.raw --stackheight=512 --scan-size=768,512"
+      command: "{{ venv_python }} /tmp/bench-scripts/lt/rawbench.py --scheduler-uri tcp://moellenstedt:{{ dask_scheduler_port }} --method=mmap --num-nodes=8 --path=/data/tiled.raw --stackheight=512 --scan-size=768,512"
       register: bench_result
     - debug:
         var: bench_result
