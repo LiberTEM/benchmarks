@@ -218,6 +218,42 @@
       local_action: "copy content={{ bench_result.stdout }} dest={{ local_result_folder }}/bench_7.json"
       become: no
 
+    - name: run libertem benchmark 8 (tiled, mmap, single mask, 1 node)
+      command: "{{ venv_python }} /tmp/bench-scripts/lt/bench-tiled20.py --scheduler-uri tcp://moellenstedt:{{ dask_scheduler_port }} --method=mmap --num-nodes=1 --path=/data/tiled.raw --stackheight=512 --scan-size=768,512"
+      register: bench_result
+    - debug:
+        var: bench_result
+    - name: collect benchmark results
+      local_action: "copy content={{ bench_result.stdout }} dest={{ local_result_folder }}/bench_8.json"
+      become: no
+
+    - name: run libertem benchmark 9 (tiled, mmap, single mask, 2 nodes)
+      command: "{{ venv_python }} /tmp/bench-scripts/lt/bench-tiled20.py --scheduler-uri tcp://moellenstedt:{{ dask_scheduler_port }} --method=mmap --num-nodes=2 --path=/data/tiled.raw --stackheight=512 --scan-size=768,512"
+      register: bench_result
+    - debug:
+        var: bench_result
+    - name: collect benchmark results
+      local_action: "copy content={{ bench_result.stdout }} dest={{ local_result_folder }}/bench_9.json"
+      become: no
+
+    - name: run libertem benchmark 10 (tiled, mmap, single mask, 4 nodes)
+      command: "{{ venv_python }} /tmp/bench-scripts/lt/bench-tiled20.py --scheduler-uri tcp://moellenstedt:{{ dask_scheduler_port }} --method=mmap --num-nodes=4 --path=/data/tiled.raw --stackheight=512 --scan-size=768,512"
+      register: bench_result
+    - debug:
+        var: bench_result
+    - name: collect benchmark results
+      local_action: "copy content={{ bench_result.stdout }} dest={{ local_result_folder }}/bench_10.json"
+      become: no
+
+    - name: run libertem benchmark 11 (tiled, mmap, single mask, 8 nodes)
+      command: "{{ venv_python }} /tmp/bench-scripts/lt/bench-tiled20.py --scheduler-uri tcp://moellenstedt:{{ dask_scheduler_port }} --method=mmap --num-nodes=8 --path=/data/tiled.raw --stackheight=512 --scan-size=768,512"
+      register: bench_result
+    - debug:
+        var: bench_result
+    - name: collect benchmark results
+      local_action: "copy content={{ bench_result.stdout }} dest={{ local_result_folder }}/bench_11.json"
+      become: no
+
 
     - name: kill dask scheduler
       shell: killall dask-scheduler -u clausen -w
