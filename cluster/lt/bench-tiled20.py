@@ -93,6 +93,7 @@ def main(path, scheduler_uri, stackheight, scan_size, method, num_masks, num_wor
                 scan_size=scan_size,
                 detector_size_raw=(128, 128),
                 crop_detector_to=(128, 128),
+                tileshape=(1, stackheight, 128, 128),
             )
         ds = ds.initialize()
         return ds
