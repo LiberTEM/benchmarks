@@ -1,0 +1,22 @@
+Single-node benchmark commands, example (varying num of workers and tilesize):
+
+    # 8 core cluster node:
+    for j in 16 32 512; do
+        for i in 1 2 3 4 5 6 7 8; do (
+            python bench-tiled20.py --path=/data/tiled.raw --scan-size=768,512 --method=mmap --num-workers=$i --stackheight=$j > single-node-from-fscache-$i-$j.json
+        );
+        done;
+    done
+
+
+    # for 18 core machine:
+    for j in 16 32 512; do
+        for i in 1 2 4 8 16 18 32; do (
+            python bench-tiled20.py --path=/cachedata/users/clausen/tiled.raw --scan-size=512,768 --method=mmap --stackheight=$j --num-workers=$i > ~/bench-results-single-node/moellenstedt-$j-$i.json
+        );
+        done;
+    done
+
+To extract the relevant info from the json result files:
+
+    ./get_lt_results.sh a-bunch-of-json-files*.json
