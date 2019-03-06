@@ -28,7 +28,7 @@
     venv_dir: /Users/clausen/libertem-bench-venv
     checkout_dir: /Users/clausen/libertem-bench/
     venv_pip: "{{ venv_dir }}/bin/pip"
-    venv_python: "{{ venv_python }}/bin/python"
+    venv_python: "{{ venv_dir }}/bin/python"
     dask_scheduler_port: "{{ hostvars['localhost'].dask_scheduler_port }}"
   tasks:
     - name: clone libertem repository
@@ -111,6 +111,7 @@
     - name: collect FIO results
       local_action: "copy content={{ fio_result.stdout }} dest={{ local_result_folder }}/fio_result_{{ ansible_hostname }}.json"
       tags: fio
+      become: no
     - name: clone libertem repository
       git:
         repo: "{{ repo_url }}"
@@ -145,21 +146,79 @@
     venv_dir: /Users/clausen/libertem-bench-venv
     venv_python: "{{ venv_dir }}/bin/python"
     dask_scheduler_port: "{{ hostvars['localhost'].dask_scheduler_port }}"
+    bench_run_id: "{{ hostvars['localhost'].bench_run_id }}"
+    local_result_folder: "results/{{ bench_run_id }}/"
   tasks:
     - name: copy libertem benchmark scripts
       copy:
         src: ./lt/
         dest: /tmp/bench-scripts/lt/
+
     - name: run libertem benchmark 1 (tiled20, direct, single mask)
       command: "{{ venv_python }} /tmp/bench-scripts/lt/bench-tiled20.py --scheduler-uri tcp://moellenstedt:{{ dask_scheduler_port }} --method=direct"
-      register: bench_1_result
+      register: bench_result
     - debug:
-        var: bench_1_result
+        var: bench_result
+    - name: collect benchmark results
+      local_action: "copy content={{ bench_result.stdout }} dest={{ local_result_folder }}/bench_1.json"
+      become: no
+
     - name: run libertem benchmark 2 (tiled20, mmap, single mask)
       command: "{{ venv_python }} /tmp/bench-scripts/lt/bench-tiled20.py --scheduler-uri tcp://moellenstedt:{{ dask_scheduler_port }} --method=mmap"
-      register: bench_2_result
+      register: bench_result
     - debug:
-        var: bench_2_result
+        var: bench_result
+    - name: collect benchmark results
+      local_action: "copy content={{ bench_result.stdout }} dest={{ local_result_folder }}/bench_2.json"
+      become: no
+
+    - name: run libertem benchmark 3 (tiled20, simple read, single mask)
+      command: "{{ venv_python }} /tmp/bench-scripts/lt/bench-tiled20.py --scheduler-uri tcp://moellenstedt:{{ dask_scheduler_port }} --method=read"
+      register: bench_result
+    - debug:
+        var: bench_result
+    - name: collect benchmark results
+      local_action: "copy content={{ bench_result.stdout }} dest={{ local_result_folder }}/bench_3.json"
+      become: no
+
+
+    - name: run libertem benchmark 4 (tiled20, direct, single mask, 1 node)
+      command: "{{ venv_python }} /tmp/bench-scripts/lt/bench-tiled20.py --scheduler-uri tcp://moellenstedt:{{ dask_scheduler_port }} --method=direct --num-nodes=1"
+      register: bench_result
+    - debug:
+        var: bench_result
+    - name: collect benchmark results
+      local_action: "copy content={{ bench_result.stdout }} dest={{ local_result_folder }}/bench_4.json"
+      become: no
+
+    - name: run libertem benchmark 5 (tiled20, direct, single mask, 2 nodes)
+      command: "{{ venv_python }} /tmp/bench-scripts/lt/bench-tiled20.py --scheduler-uri tcp://moellenstedt:{{ dask_scheduler_port }} --method=direct --num-nodes=2"
+      register: bench_result
+    - debug:
+        var: bench_result
+    - name: collect benchmark results
+      local_action: "copy content={{ bench_result.stdout }} dest={{ local_result_folder }}/bench_5.json"
+      become: no
+
+    - name: run libertem benchmark 6 (tiled20, direct, single mask, 4 nodes)
+      command: "{{ venv_python }} /tmp/bench-scripts/lt/bench-tiled20.py --scheduler-uri tcp://moellenstedt:{{ dask_scheduler_port }} --method=direct --num-nodes=4"
+      register: bench_result
+    - debug:
+        var: bench_result
+    - name: collect benchmark results
+      local_action: "copy content={{ bench_result.stdout }} dest={{ local_result_folder }}/bench_6.json"
+      become: no
+
+    - name: run libertem benchmark 7 (tiled20, direct, single mask, 8 nodes)
+      command: "{{ venv_python }} /tmp/bench-scripts/lt/bench-tiled20.py --scheduler-uri tcp://moellenstedt:{{ dask_scheduler_port }} --method=direct --num-nodes=8"
+      register: bench_result
+    - debug:
+        var: bench_result
+    - name: collect benchmark results
+      local_action: "copy content={{ bench_result.stdout }} dest={{ local_result_folder }}/bench_7.json"
+      become: no
+
+
     - name: kill dask scheduler
       shell: killall dask-scheduler -u clausen -w
     - name: status check for scheduler
