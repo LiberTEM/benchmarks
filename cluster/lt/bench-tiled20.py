@@ -47,7 +47,7 @@ def _preload():
 @click.option('--scheduler-uri', default=None)
 @click.option('--stackheight', default=32)
 @click.option('--scan-size', default="10240,768")
-@click.option('--method', type=click.Choice(['direct', 'mmap', 'read']))
+@click.option('--method', type=click.Choice(['direct', 'mmap', 'read']), required=True)
 @click.option('--num-masks', default=1)
 @click.option('--num-workers', default=psutil.cpu_count(logical=False))
 @click.option('--num-nodes', default=None, type=int)
