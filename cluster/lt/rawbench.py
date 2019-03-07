@@ -58,7 +58,9 @@ def _preload():
 @click.option('--num-masks', default=1)
 @click.option('--num-workers', default=psutil.cpu_count(logical=False))
 @click.option('--num-nodes', default=None, type=int)
-def main(path, scheduler_uri, stackheight, scan_size, method, num_masks, num_workers, num_nodes):
+@click.option('--warmup-rounds', default=1)
+def main(path, scheduler_uri, stackheight, scan_size, method, num_masks, num_workers, num_nodes,
+         warmup_rounds):
     scan_size = tuple(int(x) for x in scan_size.split(","))
     if num_nodes is not None and scheduler_uri is None:
         raise Exception("num_nodes limit only works for non-local cluster")
@@ -122,8 +124,9 @@ def main(path, scheduler_uri, stackheight, scan_size, method, num_masks, num_wor
         factories=num_masks * [_make_random_mask]
     )
 
-    # dry-run:
-    ctx.run(apply_mask)
+    # warmup rounds:
+    for i in range(warmup_rounds):
+        ctx.run(apply_mask)
 
     # timed run:
     t0 = time.time()

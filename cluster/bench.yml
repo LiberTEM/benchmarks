@@ -65,6 +65,10 @@
     bench_run_id: "{{ hostvars['localhost'].bench_run_id }}"
     local_result_folder: "results/{{ bench_run_id }}/"
   tasks:
+    - name: kill remaining dask workers
+      shell: killall dask-worker -u benchmark -w
+      tags: [setup]
+      ignore_errors: yes
     - name: create tiled4 dataset
       tags: [setup]
       shell: cat /data/tiled.raw /data/tiled.raw /data/tiled.raw /data/tiled.raw > /data/tiled4.raw
@@ -269,7 +273,7 @@
 
     - name: run libertem benchmark 12 (tiled, mmap, single mask, 8 nodes)
       tags: [bench12,method-direct,nodes-8,all-nodes,cpu-bound]
-      command: "{{ venv_python }} /tmp/bench-scripts/lt/rawbench.py --scheduler-uri tcp://moellenstedt:{{ dask_scheduler_port }} --method=mmap --num-nodes=8 --path=/data/tiled4.raw --stackheight=512 --scan-size=3072,512"
+      command: "{{ venv_python }} /tmp/bench-scripts/lt/rawbench.py --scheduler-uri tcp://moellenstedt:{{ dask_scheduler_port }} --method=mmap --num-nodes=8 --path=/data/tiled4.raw --stackheight=768 --scan-size=2048,768 --warmup-rounds=4"
       register: bench_result
     - debug:
         var: bench_result
@@ -280,7 +284,7 @@
 
     - name: run libertem benchmark 11 (tiled, mmap, single mask, 4 nodes)
       tags: [bench11,method-direct,nodes-4,cpu-bound]
-      command: "{{ venv_python }} /tmp/bench-scripts/lt/rawbench.py --scheduler-uri tcp://moellenstedt:{{ dask_scheduler_port }} --method=mmap --num-nodes=4 --path=/data/tiled4.raw --stackheight=512 --scan-size=3072,512"
+      command: "{{ venv_python }} /tmp/bench-scripts/lt/rawbench.py --scheduler-uri tcp://moellenstedt:{{ dask_scheduler_port }} --method=mmap --num-nodes=4 --path=/data/tiled4.raw --stackheight=512 --scan-size=2048,768"
       register: bench_result
     - debug:
         var: bench_result
@@ -291,7 +295,7 @@
 
     - name: run libertem benchmark 10 (tiled, mmap, single mask, 2 nodes)
       tags: [bench10,method-direct,nodes-2,cpu-bound]
-      command: "{{ venv_python }} /tmp/bench-scripts/lt/rawbench.py --scheduler-uri tcp://moellenstedt:{{ dask_scheduler_port }} --method=mmap --num-nodes=2 --path=/data/tiled4.raw --stackheight=512 --scan-size=3072,512"
+      command: "{{ venv_python }} /tmp/bench-scripts/lt/rawbench.py --scheduler-uri tcp://moellenstedt:{{ dask_scheduler_port }} --method=mmap --num-nodes=2 --path=/data/tiled4.raw --stackheight=512 --scan-size=2048,768"
       register: bench_result
     - debug:
         var: bench_result
@@ -302,7 +306,7 @@
 
     - name: run libertem benchmark 9 (tiled, mmap, single mask, 1 node)
       tags: [bench9,method-direct,nodes-1,cpu-bound]
-      command: "{{ venv_python }} /tmp/bench-scripts/lt/rawbench.py --scheduler-uri tcp://moellenstedt:{{ dask_scheduler_port }} --method=mmap --num-nodes=1 --path=/data/tiled4.raw --stackheight=512 --scan-size=3072,512"
+      command: "{{ venv_python }} /tmp/bench-scripts/lt/rawbench.py --scheduler-uri tcp://moellenstedt:{{ dask_scheduler_port }} --method=mmap --num-nodes=1 --path=/data/tiled4.raw --stackheight=512 --scan-size=2048,768"
       register: bench_result
     - debug:
         var: bench_result
