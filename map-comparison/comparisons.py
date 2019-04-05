@@ -4,6 +4,8 @@ import psutil
 
 import click
 
+from benchs import benchs
+
 def _preload():
     import libertem.preload  # NOQA
 
@@ -16,10 +18,12 @@ def _preload():
 @click.option('--detector-size', default="128,128")
 @click.option('--dtype', default="float32")
 @click.option('--bench', type=click.Choice(['dask', 'dask.distributed', 'numpy', 'libertem']), required=True)
+@click.option('--which', type=click.Choice(benchs), multiple=True)
+@click.option('--skip', type=click.Choice(benchs), multiple=True)
 @click.option('--num-workers', default=psutil.cpu_count(logical=False))
 @click.option('--num-nodes', default=None, type=int)
 @click.option('--warmup-rounds', default=1)
-def main(path, scheduler_uri, stackheight, dtype, scan_size, detector_size, bench, num_workers, num_nodes,
+def main(path, scheduler_uri, stackheight, dtype, scan_size, detector_size, bench, which, skip, num_workers, num_nodes,
          warmup_rounds):
     scan_size = tuple(int(x) for x in scan_size.split(","))
     detector_size = tuple(int(x) for x in detector_size.split(","))
@@ -51,7 +55,7 @@ def main(path, scheduler_uri, stackheight, dtype, scan_size, detector_size, benc
         from DaskBenchmark import DaskBenchmark as Bm
 
     b = Bm(path, dtype, scan_size, detector_size, warmup_rounds, roi, mask)
-    print(json.dumps(b.bench_all()))
+    print(json.dumps(b.bench_all(which, skip)))
 
 if __name__ == "__main__":
     main()

@@ -25,25 +25,27 @@ class DaskBenchmark(Benchmark):
 
             return (real_num, (y // real_num, scan_size[1]) + detector_size)
 
-        def mmap_partition(filename, dtype, chunking, chunk_number):
+        def _mmap_partition(filename, dtype, chunking, chunk_number):
             chunksize = np.prod(chunking)*dtype.itemsize
             offset = chunk_number * chunksize
             return np.memmap(filename, dtype=dtype, mode='r', shape=chunking, offset=offset)
 
-        num, chunking = calculate_chunking(
+        mmap_partition = dask.delayed(_mmap_partition)
+
+        self.num, self.chunking = calculate_chunking(
             self.target_chunksize, self.dtype, self.scan_size, self.detector_size
         )
+
         chunks = [dask.array.from_delayed(
-            dask.delayed(
-                mmap_partition(
-                    filename=self.path,
-                    dtype=self.dtype,
-                    chunking=chunking,
-                    chunk_number=n)
-                ),
-            shape=chunking,
+            mmap_partition(
+                filename=self.path,
+                dtype=self.dtype,
+                chunking=self.chunking,
+                chunk_number=n
+            ),
+            shape=self.chunking,
             dtype=self.dtype
-            ) for n in range(num)
+            ) for n in range(self.num)
         ]
         self.data = dask.array.concatenate(chunks, axis=0)
         self.boolean_mask = self.mask == 1
@@ -77,15 +79,17 @@ class DaskBenchmark(Benchmark):
         return ffts.reshape((-1, f * g)).dot(flat_mask.T).reshape(self.scan_size).compute()
 
     def center_of_mass(self):
-        return
         # TODO find a proper implementation for mapping functions
         (a, b) = self.scan_size
+        (h, k, i, j) = self.chunking
         # masked = self.data * self.mask
-        result = np.zeros(shape=(a, b, 2))
-        for i in range (a):
-            for j in range(b):
-                # This doesn't work
-                # result[i, j] = scipy.ndimage.measurements.center_of_mass(masked[i, j])
-                # This is bad because it loads the data on the client
-                result[i, j] = scipy.ndimage.measurements.center_of_mass(self.data[i, j].compute())
-        return result
+        def _com(block):
+            (a, b, c, d) = block.shape
+            res = np.zeros(shape=(a, b, 2))
+            for i in range(a):
+                for j in range(b):
+                    res[i, j] = scipy.ndimage.measurements.center_of_mass(block[i, j])
+            return res
+
+        result = dask.array.core.map_blocks(_com, self.data)
+        return result.compute()

@@ -12,8 +12,15 @@ class Benchmark:
         self.roi = roi
         self.mask = mask
 
-    def bench_all(self):
-        funcs = ['sum_image', 'std_map', 'masked_sum', 'fluctuation_em', 'fourier_sum', 'center_of_mass']
+    def bench_all(self, which=None, skip=None):
+        if not which:
+            from benchs import benchs as funcs
+        else:
+            funcs = which
+        if skip is None:
+            skip = []
+        funcs = [f for f in funcs if f not in skip]
+
         result = {}
         for f in funcs:
             func = self.__getattribute__(f)
