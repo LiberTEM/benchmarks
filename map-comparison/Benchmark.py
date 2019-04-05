@@ -1,9 +1,11 @@
 import time
 
+import numpy as np
+
 class Benchmark:
     def __init__(self, path, dtype, scan_size, detector_size, warmup_rounds, roi, mask):
         self.path = path
-        self.dtype = dtype
+        self.dtype = np.dtype(dtype)
         self.scan_size = scan_size
         self.detector_size = detector_size
         self.warmup_rounds = warmup_rounds
