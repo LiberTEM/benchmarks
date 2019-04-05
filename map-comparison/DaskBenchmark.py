@@ -79,7 +79,6 @@ class DaskBenchmark(Benchmark):
         return ffts.reshape((-1, f * g)).dot(flat_mask.T).reshape(self.scan_size).compute()
 
     def center_of_mass(self):
-        # TODO find a proper implementation for mapping functions
         (a, b) = self.scan_size
         (h, k, i, j) = self.chunking
         # masked = self.data * self.mask
