@@ -1,19 +1,51 @@
 import numpy as np
 import dask.array
+import dask
 import scipy.ndimage
 
 from Benchmark import Benchmark
 
 class DaskBenchmark(Benchmark):
+    # 256 MB
+    target_chunksize=2**28
+
     def __init__(self, path, dtype, scan_size, detector_size, warmup_rounds, roi, mask):
         super().__init__(path, dtype, scan_size, detector_size, warmup_rounds, roi, mask)
-        raw_data = np.memmap(
-            self.path, 
-            dtype=self.dtype, 
-            mode='r', 
-            shape=self.scan_size + self.detector_size
+
+        # This assumes that scan_size[0] is powers of two
+        def calculate_chunking(target, dtype, scan_size, detector_size):
+            y = scan_size[0]
+            total_size = np.prod(scan_size + detector_size) * dtype.itemsize
+            ideal_num = total_size / target
+            real_num = 1
+            while real_num < ideal_num:
+                real_num *= 2
+
+            assert y % real_num == 0
+
+            return (real_num, (y // real_num, scan_size[1]) + detector_size)
+
+        def mmap_partition(filename, dtype, chunking, chunk_number):
+            chunksize = np.prod(chunking)*dtype.itemsize
+            offset = chunk_number * chunksize
+            return np.memmap(filename, dtype=dtype, mode='r', shape=chunking, offset=offset)
+
+        num, chunking = calculate_chunking(
+            self.target_chunksize, self.dtype, self.scan_size, self.detector_size
         )
-        self.data = dask.array.from_array(raw_data, chunks=(32, 64, 128, 128))
+        chunks = [dask.array.from_delayed(
+            dask.delayed(
+                mmap_partition(
+                    filename=self.path,
+                    dtype=self.dtype,
+                    chunking=chunking,
+                    chunk_number=n)
+                ),
+            shape=chunking,
+            dtype=self.dtype
+            ) for n in range(num)
+        ]
+        self.data = dask.array.concatenate(chunks, axis=0)
         self.boolean_mask = self.mask == 1
 
     def sum_image(self):
