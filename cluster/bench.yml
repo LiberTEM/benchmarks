@@ -1,6 +1,6 @@
 ---
 - hosts: localhost
-  tags: [setup]
+  tags: [setup,scheduler]
   tasks:
     - name: set global facts
       set_fact:
@@ -10,7 +10,7 @@
 
 - hosts: head
   remote_user: root
-  tags: [setup]
+  tags: [setup,scheduler]
   vars:
     dask_scheduler_port: "{{ hostvars['localhost'].dask_scheduler_port }}"
   tasks:
@@ -28,7 +28,10 @@
   tags: [setup]
   vars:
     repo_url: https://github.com/libertem/libertem
-    venv_dir: /Users/clausen/libertem-bench-venv
+
+    miniconda: Miniconda3-latest-Linux-x86_64.sh
+    conda_dir: /Users/clausen/libertem-bench-conda
+    venv_dir: "{{ conda_dir }}/envs/libertem"
     checkout_dir: /Users/clausen/libertem-bench/
     venv_pip: "{{ venv_dir }}/bin/pip"
     venv_python: "{{ venv_dir }}/bin/python"
@@ -38,17 +41,36 @@
       git:
         repo: "{{ repo_url }}"
         dest: "{{ checkout_dir }}"
+
+    - name: copy over miniconda installer
+      copy:
+        src: "{{ miniconda }}"
+        dest: /Users/clausen/
+      tags: [setup]
+    - name: install miniconda
+      shell: chmod +x "/Users/clausen/{{ miniconda }}" && "/Users/clausen/{{ miniconda }}" -b -p {{ conda_dir }}
+      args:
+        creates: "{{ conda_dir }}"
+      tags: [setup]
+    - name: create virtualenv
+      tags: [setup]
+      shell: "{{ conda_dir }}/bin/conda create -n libertem python=3.6 -y"
+      args:
+        creates: "{{ venv_dir }}"
+
+
     - name: create virtualenv
       shell: "python3 -m venv {{ venv_dir }}"
       args:
         creates: "{{ venv_dir }}"
     - name: install libertem and dependencies into venv
-      shell: "{{ venv_pip }} install -e {{ checkout_dir }}[torch]"
+      shell: "{{ venv_pip }} install -e {{ checkout_dir }}[torch,pyfftw,hdbscan]"
     - name: run dask-scheduler on head node
       command: "{{ venv_dir }}/bin/dask-scheduler --port {{ dask_scheduler_port }}"
-      async: 3600
+      async: 2592000
       poll: 0
       register: head_scheduler_job
+      tags: [setup,scheduler]
 
 - hosts: cluster
   remote_user: root
@@ -57,7 +79,9 @@
   become_flags: --login
   become: yes
   vars:
-    venv_dir: /tmp/libertem-bench-venv/
+    miniconda: Miniconda3-latest-Linux-x86_64.sh
+    conda_dir: /tmp/libertem-bench-conda
+    venv_dir: "{{ conda_dir }}/envs/libertem"
     venv_pip: "{{ venv_dir }}/bin/pip"
     repo_url: https://github.com/libertem/libertem
     checkout_dir: /tmp/libertem-bench/
@@ -75,14 +99,14 @@
       args:
         creates: /data/tiled4.raw
       become_user: root
-    - name: allow moellenstedt to connect to cluster nodes
+    - name: allow connections to cluster nodes
       tags: [setup]
       iptables:
         chain: INPUT
         action: insert
         rule_num: 1
         protocol: tcp
-        source: 134.94.162.235
+        # source: 134.94.162.235
         jump: ACCEPT
       become_user: root
     - name: check for existing tmpfs mounts
@@ -136,26 +160,37 @@
       git:
         repo: "{{ repo_url }}"
         dest: "{{ checkout_dir }}"
+    - name: copy over miniconda installer
+      copy:
+        src: "{{ miniconda }}"
+        dest: /tmp/
+      tags: [setup]
+    - name: install miniconda
+      shell: chmod +x "/tmp/{{ miniconda }}" && "/tmp/{{ miniconda }}" -b -p {{ conda_dir }}
+      args:
+        creates: "{{ conda_dir }}"
+      tags: [setup]
     - name: create virtualenv
       tags: [setup]
-      shell: "python36 -m venv {{ venv_dir }}"
+      shell: "{{ conda_dir }}/bin/conda create -n libertem python=3.6 -y"
       args:
         creates: "{{ venv_dir }}"
-    - name: copy over psutil wheel
+    - name: copy over wheels
       tags: [setup]
       copy:
-        src: psutil-5.5.1-cp36-cp36m-linux_x86_64.whl
+        src: "{{ item }}"
         dest: /tmp/
-    - name: install psutil
+      with_fileglob: ./*.whl
+    - name: install wheels
       tags: [setup]
-      shell: "{{ venv_pip }} install /tmp/psutil-5.5.1-cp36-cp36m-linux_x86_64.whl"
+      shell: "{{ venv_pip }} install /tmp/*.whl"
     - name: install libertem and dependencies into venv
       tags: [setup]
-      shell: "{{ venv_pip }} install -e {{ checkout_dir }}[torch]"
+      shell: "{{ venv_pip }} install -e {{ checkout_dir }}[torch,pyfftw]"
     - name: run dask-worker
       tags: [setup]
       shell: chdir=/tmp/ "{{ venv_dir }}/bin/dask-worker" --preload libertem.preload --nthreads=1 --nprocs=8 --no-bokeh "tcp://moellenstedt:{{ dask_scheduler_port }}"
-      async: 3600
+      async: 2592000  # 1 month
       poll: 0
       environment:
         OMP_NUM_THREADS: 1
