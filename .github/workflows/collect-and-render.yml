@@ -1,0 +1,32 @@
+name: Collect and Render
+
+on:
+  workflow_dispatch:
+    inputs:
+      artifact_id:
+        description: 'ID of the artifact to download'
+        required: true
+        type: string
+      source_repo:
+        description: 'owner/repo of the source repository'
+        required: true
+        type: string
+
+jobs:
+  download-artifact:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout this repo
+        uses: actions/checkout@v4
+
+      - name: Download artifact from another repository
+        env:
+          GH_TOKEN: ${{ secrets.BENCH_GH_TOKEN }}
+        run: |
+          gh api \
+            -H "Accept: application/vnd.github+json" \
+            /repos/${{ github.event.inputs.source_repo }}/actions/artifacts/${{ github.event.inputs.artifact_id }}/zip \
+            --output artifact.zip
+
+      - name: Unzip artifact
+        run: unzip artifact.zip -d artifact_contents && ls -la && find
