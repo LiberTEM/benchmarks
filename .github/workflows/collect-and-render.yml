@@ -3,8 +3,8 @@ name: Collect and Render
 on:
   workflow_dispatch:
     inputs:
-      artifact_id:
-        description: 'ID of the artifact to download'
+      run_id:
+        description: 'Workflow run ID to download artifact from'
         required: true
         type: string
       source_repo:
@@ -19,14 +19,16 @@ jobs:
       - name: Checkout this repo
         uses: actions/checkout@v4
 
-      - name: Download artifact from another repository
+      - name: Download artifact
         env:
           GH_TOKEN: ${{ secrets.BENCH_GH_TOKEN }}
-        run: |
-          gh api \
-            -H "Accept: application/vnd.github+json" \
-            /repos/${{ github.event.inputs.source_repo }}/actions/artifacts/${{ github.event.inputs.artifact_id }}/zip \
-            --output artifact.zip
+        uses: actions/download-artifact@v4
+        with:
+          name: artifact
+          github-token: ${{ secrets.BENCH_GH_TOKEN }}
+          repository: ${{ github.event.inputs.source_repo }}
+          run-id: ${{ github.event.inputs.run_id }}
+          path: artifact_contents
 
       - name: Unzip artifact
         run: unzip artifact.zip -d artifact_contents && ls -la && find
