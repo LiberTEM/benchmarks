@@ -37,7 +37,7 @@ jobs:
           run-id: ${{ github.event.inputs.run_id }}
           path: artifact_contents
 
-      - name: List some files
+      - name: List all files
         run: ls -la && find
 
       - name: Use Python
@@ -51,6 +51,9 @@ jobs:
             && ./venv/bin/pip install click \
             && ./venv/bin/python collect.py artifact_contents/*.zip \
             --repo-name ${{ github.event.inputs.source_repo }} --dest-folder ./collected
+
+      - name: Prepare git for committing
+        run: git config --global user.email a.clausen@fz-juelich.de && git config --global user.name "GitHub Actions"
 
       - name: Commit newly collected benchmarks
         run: git add ./collected && git commit -m "Add benchmark from ${{ github.event.inputs.source_repo }}" && git push
