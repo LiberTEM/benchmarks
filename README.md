@@ -9,8 +9,10 @@
   containing the benchmark results and the name of the repository that triggered run
 - The workflow then...
     - Downloads the benchmark results
-    - TODO: Extracts them, and puts them into the correct folder
+    - Extracts them, and puts them into the correct folder
     - TODO: creates graphs of the changes of benchmark results over time
+    - TODO: puts the graphs into a document (HTML)
+    - TOOD: publishes the document on github pages
 
 ## Tokens
 

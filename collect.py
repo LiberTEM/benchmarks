@@ -46,8 +46,8 @@ def _make_new_path(
 @click.command()
 @click.argument("zip_paths", nargs=-1, type=pathlib.Path)
 @click.option("--inner-filename", default="bench-results.json", type=str)
-@click.option("--repo-name", type=str)
-@click.option("--dest-folder", type=pathlib.Path)
+@click.option("--repo-name", type=str, required=True)
+@click.option("--dest-folder", type=pathlib.Path, required=True)
 def main(
     zip_paths: list[pathlib.Path],
     inner_filename: str,

@@ -52,8 +52,18 @@ jobs:
             && ./venv/bin/python collect.py artifact_contents/*.zip \
             --repo-name ${{ github.event.inputs.source_repo }} --dest-folder ./collected
 
+      - name: Re-render SVGs and HTML files
+        run: |
+            ./venv/bin/pip install "pytest-benchmark[histogram]" \
+            ./venv/bin/python render.py --src-folder collected/ --dest-folder rendered --repo ${{ github.event.inputs.source_repo }}
+
       - name: Prepare git for committing
         run: git config --global user.email a.clausen@fz-juelich.de && git config --global user.name "GitHub Actions"
 
       - name: Commit newly collected benchmarks
-        run: git add ./collected && git commit -m "Add benchmark from ${{ github.event.inputs.source_repo }}" && git push
+        run: git add ./collected ./rendered && git commit -m "Add benchmark from ${{ github.event.inputs.source_repo }}" && git push
+
+      - name: Upload rendered benchmarks
+        uses: actions/upload-pages-artifact@v3.0.1
+        with:
+            path: 'rendered/'
