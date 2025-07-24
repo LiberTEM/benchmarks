@@ -10,9 +10,9 @@
 - The workflow then...
     - Downloads the benchmark results
     - Extracts them, and puts them into the correct folder
-    - TODO: creates graphs of the changes of benchmark results over time
-    - TODO: puts the graphs into a document (HTML)
-    - TOOD: publishes the document on github pages
+    - creates graphs of the changes of benchmark results over time
+    - puts the graphs into a document (HTML)
+    - publishes the document on github pages
 
 ## Tokens
 

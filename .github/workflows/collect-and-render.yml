@@ -55,7 +55,7 @@ jobs:
       - name: Re-render SVGs and HTML files
         run: |
             ./venv/bin/pip install "pytest-benchmark[histogram]" \
-            ./venv/bin/python render.py --src-folder collected/ --dest-folder rendered --repo ${{ github.event.inputs.source_repo }}
+            && ./venv/bin/python render.py --src-folder collected/ --dest-folder rendered --repo ${{ github.event.inputs.source_repo }}
 
       - name: Prepare git for committing
         run: git config --global user.email a.clausen@fz-juelich.de && git config --global user.name "GitHub Actions"
