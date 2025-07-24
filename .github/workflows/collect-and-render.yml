@@ -1,5 +1,8 @@
 name: Collect and Render
 
+permissions:
+  contents: write
+
 on:
   workflow_dispatch:
     inputs:
@@ -36,3 +39,18 @@ jobs:
 
       - name: List some files
         run: ls -la && find
+
+      - name: Use Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Collect new benchmarks
+        run: |
+            python3 -m venv venv \
+            && ./venv/bin/pip install click \
+            && ./venv/bin/python collect.py artifact_contents/*.zip \
+            --repo-name ${{ github.event.inputs.source_repo }} --dest-folder ./collected
+
+      - name: Commit newly collected benchmarks
+        run: git add ./collected && git commit -m "Add benchmark from ${{ github.event.inputs.source_repo }}" && git push

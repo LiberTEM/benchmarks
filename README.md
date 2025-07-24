@@ -5,8 +5,12 @@
 
 - This repository has a workflow that is triggered by any other repository
   (using the `TRIGGER_BENCH_GH_TOKEN` organization secret)
-- The workflow dispatch call includes a JSON payload specifying the artifact ID
+- The workflow dispatch call includes a JSON payload specifying the workflow run ID
   containing the benchmark results and the name of the repository that triggered run
+- The workflow then...
+    - Downloads the benchmark results
+    - TODO: Extracts them, and puts them into the correct folder
+    - TODO: creates graphs of the changes of benchmark results over time
 
 ## Tokens
 
