@@ -24,3 +24,15 @@
     - read-only access to "Actions" on all repositories
     - available to this repository only
     - used to download artifacts from other repositories
+
+## Enrolling a new repository to the benchmark collection
+
+1) Create a repository on the JSC GitLab, note down the project ID in the
+   general settings, allow force pushes etc. as documented in github2lab
+2) Copy the continuous benchmarking (`cb.yml`) workflow and `.gitlab-ci.yml` from the
+   `cb-testing` repo to the GitHub repo you want to enroll
+3) Change the project ID in the `cb.yml` workflow
+4) Update the `.gitlab-ci.yml` file to install dependencies and run the benchmarks,
+   as it fits the concrete project; possibly change branch names etc.
+5) In the GitHub repository, add a `benchmark` label, that is used to control triggering
+   benchmarks for pull requests

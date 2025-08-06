@@ -50,7 +50,7 @@ def _format_duration(duration: float) -> str:
         return f"{duration*1e9:.2f} ns"
 
 
-def _format_changed_timings(entry: RawResult) -> str:
+def _format_raw_result(entry: RawResult) -> str:
     return (
         f"{_format_duration(entry['all_data']['stats']['mean'])} "
         f"(± {_format_duration(entry['all_data']['stats']['stddev'])})"
@@ -60,7 +60,7 @@ def _format_changed_timings(entry: RawResult) -> str:
 class ComparisonResult:
     def __init__(
         self,
-        new_benchmarks: list[str],
+        new_benchmarks: dict[str, RawResult],
         removed_benchmarks: list[str],
         unchanged: list[str],
         changed: dict[str, ChangedEntry],
@@ -78,9 +78,25 @@ class ComparisonResult:
 {self._get_removed_warning()}
 {self._get_change_summary()}
 
-## Changed benchmark results
+## Details
+### Changed benchmarks
 {self._get_change_details()}
+{self._get_new_benchmarks_table()}
 """
+
+    def _get_new_benchmarks_table(self):
+        if len(self.new) == 0:
+            return ""
+        header = """
+### New benchmarks
+| Name | result |
+| ---- | ------ |
+"""
+        rows = []
+        for name, result in self.new.items():
+            value = _format_raw_result(result)
+            rows.append(f"| {name} | {value} |")
+        return header + "\n".join(rows)
 
     def _get_removed_warning(self):
         if len(self.removed) == 0:
@@ -96,7 +112,7 @@ class ComparisonResult:
             return ""
         return f"""
 > [!NOTE]
-> The following benchmarks are new: {", ".join([f"`{n}`" for n in self.new])}
+> The following benchmarks are new: {", ".join([f"`{n}`" for n in self.new.keys()])}
         """
 
     def _get_change_summary(self):
@@ -110,7 +126,7 @@ class ComparisonResult:
 | ---- | --- | --- |
 """
         rows = [
-            f"| {key} | {_format_changed_timings(value['old'])} | {_format_changed_timings(value['new'])} |"
+            f"| {key} | {_format_raw_result(value['old'])} | {_format_raw_result(value['new'])} |"
             for key, value in self.changed.items()
         ]
         return header + "\n".join(rows)
@@ -139,7 +155,7 @@ class BenchmarkResults:
         """
         keys_this = set(self._raw_results.keys())
         keys_old = set(old._raw_results.keys())
-        new_benchmarks = list(keys_this - keys_old)
+        new_benchmarks_names = keys_this - keys_old
         removed_benchmarks = list(keys_old - keys_this)
         to_compare = keys_this.intersection(keys_old)
         unchanged = []
@@ -157,6 +173,10 @@ class BenchmarkResults:
                     "old": old._raw_results[name],
                     "new": self._raw_results[name],
                 }
+        new_benchmarks = {
+            name: self._raw_results[name]
+            for name in new_benchmarks_names
+        }
         return ComparisonResult(
             new_benchmarks=new_benchmarks,
             removed_benchmarks=removed_benchmarks,
