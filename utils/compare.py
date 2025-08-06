@@ -127,7 +127,7 @@ class ComparisonResult:
 """
         rows = [
             f"| {key} | {_format_raw_result(value['old'])} | {_format_raw_result(value['new'])} |"
-            for key, value in self.changed.items()
+            for key, value in sorted(self.changed.items())
         ]
         return header + "\n".join(rows)
 
