@@ -165,6 +165,7 @@ class BenchmarkResults:
                 self._raw_results[name]["timings"],
                 old._raw_results[name]["timings"],
                 equal_var=False,  # Whelch's t-test
+                trim=0.01,
             )
             if ttest_res.pvalue > alpha:  # type: ignore
                 unchanged.append(name)
