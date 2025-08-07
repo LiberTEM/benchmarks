@@ -20,10 +20,18 @@ def extract_nested(outer_zipfile: zipfile.ZipFile, inner_zipname: str, filename:
             return f_inner.read(name=filename)
 
 
-def extract_and_parse(zip_fname: str, filename: str) -> "BenchmarkResults":
+def maybe_extract_and_parse(zip_fname: str, filename: str) -> "BenchmarkResults":
+    if zip_fname.endswith('.json'):
+        return parse_file(zip_fname)
     with zipfile.ZipFile(file=zip_fname, mode='r') as zf:
         contents = zf.read(filename)
     return BenchmarkResults.from_json(contents.decode("utf8"))
+
+
+def parse_file(filename: str) -> "BenchmarkResults":
+    with open(filename, mode='r') as f:
+        contents = f.read()
+    return BenchmarkResults.from_json(contents)
 
 
 class RawResult(typing.TypedDict):
@@ -190,8 +198,8 @@ class BenchmarkResults:
 @click.argument("name_old", type=click.Path())
 @click.argument("name_new", type=click.Path())
 def main(name_old, name_new):
-    b_old = extract_and_parse(zip_fname=name_old, filename="bench-results.json")
-    b_new = extract_and_parse(zip_fname=name_new, filename="bench-results.json")
+    b_old = maybe_extract_and_parse(zip_fname=name_old, filename="bench-results.json")
+    b_new = maybe_extract_and_parse(zip_fname=name_new, filename="bench-results.json")
     diff = b_new.compare_to(b_old)
     print(diff.get_summary())
 
