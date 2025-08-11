@@ -97,7 +97,7 @@ class ComparisonResult:
             return ""
         header = """
 ### New benchmarks
-| Name | result |
+| Name | Result |
 | ---- | ------ |
 """
         rows = []
@@ -130,7 +130,7 @@ class ComparisonResult:
         if len(self.changed) == 0:
             return "No significant changes detected"
         header = """
-| Name | old | new |
+| Name | Old | New |
 | ---- | --- | --- |
 """
         rows = [
