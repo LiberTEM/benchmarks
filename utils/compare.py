@@ -169,6 +169,8 @@ class BenchmarkResults:
         unchanged = []
         changed = {}
         for name in to_compare:
+            # TODO: implement our own trim to be more aggressive with outlier removal
+            # TODO: leave one out cross validation test?
             ttest_res = ttest_ind(
                 self._raw_results[name]["timings"],
                 old._raw_results[name]["timings"],
