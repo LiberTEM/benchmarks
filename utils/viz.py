@@ -5,53 +5,77 @@ from bokeh.models import ColumnDataSource
 from bokeh.plotting import figure
 from bokeh.transform import jitter
 import pandas as pd
+import bokeh.palettes as bp
+from bokeh.transform import factor_cmap
 
 pn.extension(sizing_mode="stretch_width", template="fast")
 pn.state.template.param.update(title="LiberTEM Benchmarks")
 
 
-def to_dataframe(raw_json_object, group: str):
-    header = ["name", "fullname", "raw_time", "group", "group_short"]
-    group_full = f"{group} @ {raw_json_object['machine_info']['node']}"
+def to_dataframe(raw_json_object, run: str):
+    header = ["bench_group", "name", "fullname", "raw_time", "run", "run_short"]
+    run_full = f"{run} @ {raw_json_object['machine_info']['node']}"
     rows = [
-        (bench['name'], bench['fullname'], value, group_full, group)
+        (bench['group'], bench['name'], bench['fullname'], value, run_full, run)
         for bench in raw_json_object["benchmarks"]
         for value in bench['stats']['data']
     ]
     return pd.DataFrame(rows, columns=header)
 
 
-r = requests.get(
-    "https://raw.githubusercontent.com/LiberTEM/benchmarks/refs/"
-    "heads/main/collected/LiberTEM/LiberTEM/cpu/00003.json"
-)
-df = to_dataframe(r.json(), "Current")
-test_names = df["name"].unique().tolist()
+dataframes = []
+filenames = []
+for i in range(6):
+    fn = f"{i + 1:05d}.json"
+    r = requests.get(
+        f"https://raw.githubusercontent.com/LiberTEM/benchmarks/refs/"
+        f"heads/main/collected/LiberTEM/LiberTEM/cpu/{fn}"
+    )
+    df_this = to_dataframe(r.json(), fn)
+    filenames.append(fn)
+    dataframes.append(df_this)
+
+df = pd.concat(dataframes, ignore_index=True)
+
+selectable = df["bench_group"].unique().tolist()
 
 select_test = pn.widgets.Select(
     name="Test name",
-    value=test_names[0],
-    options=test_names,
+    value=selectable[0],
+    options=selectable,
 )
-current_test = select_test.value
+selected_group = select_test.value
 
 
-def get_data(test_name: str):
-    test_data = df.groupby("name").get_group(test_name)
-    return {
-        "time": test_data["raw_time"].to_numpy(),
-        "test_name": test_data["name"].tolist(),
-    }
+def get_data(group_name: str):
+    test_data = df.groupby("bench_group").get_group(group_name)
+    return test_data
 
 
-source = ColumnDataSource(data=get_data(current_test))
+TOOLTIPS = [
+    ('Run info', '@run'),
+]
+
+
+source_data = get_data(selected_group)
+categories = source_data["name"].unique().tolist()
+source = ColumnDataSource(data=source_data)
 p = figure(
-    width=800,
-    height=300,
-    y_range=[current_test],
+    width=1200,
+    height=50 * len(categories),
+    y_range=categories,
     title="Test run",
+    tooltips=TOOLTIPS,
 )
-p.scatter(x='time', y=jitter("test_name", width=0.6, range=p.y_range), source=source, alpha=0.3)
+# p.sizing_mode = 'scale_width'
+p.sizing_mode = 'stretch_width'
+p.scatter(
+    x='raw_time',
+    y=jitter("name", width=0.02, range=p.y_range),
+    source=source,
+    alpha=0.6,
+    color=factor_cmap(field_name='run_short', palette=bp.Category20[len(filenames)], factors=filenames),
+)
 p.xaxis.axis_label = "Time (s)"
 p.yaxis.axis_label = "Test name"
 p.ygrid.grid_line_color = None
@@ -60,9 +84,11 @@ bokeh_plot = pn.pane.Bokeh(p)
 
 @hold()
 def update_results(e):
-    test_name = e.new
-    new_data = get_data(test_name)
-    p.y_range.factors = [test_name]
+    group_name = e.new
+    new_data = get_data(group_name)
+    categories = new_data["name"].unique().tolist()
+    p.y_range.factors = categories
+    p.height = 50 * len(categories)
     source.update(data=new_data)
 
 
