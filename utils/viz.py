@@ -2,6 +2,7 @@ import requests
 import panel as pn
 from panel.io import hold
 from bokeh.models import ColumnDataSource
+from bokeh.models.ranges import FactorRange
 from bokeh.plotting import figure
 from bokeh.transform import jitter
 import pandas as pd
@@ -37,6 +38,9 @@ for i in range(6):
 
 df = pd.concat(dataframes, ignore_index=True)
 
+# use this as y axis to "dodge" individual runs:
+df["y_factor"] = list(zip(df['name'], df['run_short']))
+
 selectable = df["bench_group"].unique().tolist()
 
 select_test = pn.widgets.Select(
@@ -54,24 +58,25 @@ def get_data(group_name: str):
 
 TOOLTIPS = [
     ('Run info', '@run'),
+    ('Name', '@name'),
 ]
 
+HEIGHT_FACTOR = 25
 
 source_data = get_data(selected_group)
-categories = source_data["name"].unique().tolist()
+categories = list(sorted(source_data["y_factor"].unique().tolist()))
 source = ColumnDataSource(data=source_data)
 p = figure(
     width=1200,
-    height=50 * len(categories),
-    y_range=categories,
+    height=HEIGHT_FACTOR * len(categories),
+    y_range=FactorRange(*categories, group_padding=2, subgroup_padding=0.1),
     title="Test run",
     tooltips=TOOLTIPS,
 )
-# p.sizing_mode = 'scale_width'
 p.sizing_mode = 'stretch_width'
 p.scatter(
     x='raw_time',
-    y=jitter("name", width=0.02, range=p.y_range),
+    y=jitter("y_factor", width=0.02, range=p.y_range),
     source=source,
     alpha=0.6,
     color=factor_cmap(field_name='run_short', palette=bp.Category20[len(filenames)], factors=filenames),
@@ -86,9 +91,9 @@ bokeh_plot = pn.pane.Bokeh(p)
 def update_results(e):
     group_name = e.new
     new_data = get_data(group_name)
-    categories = new_data["name"].unique().tolist()
+    categories = list(sorted(new_data["y_factor"].unique().tolist()))
     p.y_range.factors = categories
-    p.height = 50 * len(categories)
+    p.height = HEIGHT_FACTOR * len(categories)
     source.update(data=new_data)
 
 
