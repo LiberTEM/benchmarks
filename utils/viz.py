@@ -1,6 +1,9 @@
-# deps: panel, bokeh, pygments, pandas
+# deps: panel, bokeh, pygments, pandas, requests
 
 import datetime
+import copy
+import difflib
+import json
 
 import requests
 import panel as pn
@@ -32,16 +35,44 @@ def _version_set(version_list):
     return set(tuple(x) for x in version_list)
 
 
+def _sort_data(raw_data):
+    return list(sorted(raw_data, key=lambda bs: datetime.datetime.fromisoformat(bs[0]["datetime"])))
+
+
+def _filtered_machine_info(machine_info):
+    filtered = copy.deepcopy(machine_info)
+    # dependency versions are handled outside:
+    del filtered['freeze']
+    # node will be different in most runs:
+    del filtered['node']
+    return filtered
+
+
+def _json_diff(a, b):
+    astr = json.dumps(a, indent=2)
+    bstr = json.dumps(b, indent=2)
+    return "".join(
+        difflib.unified_diff(
+            [x + "\n" for x in astr.split("\n")],
+            [x + "\n" for x in bstr.split("\n")]
+        )
+    )
+
+
 def get_version_info(raw_data):
-    raw_data_sorted = list(sorted(raw_data, key=lambda bs: datetime.datetime.fromisoformat(bs[0]["datetime"])))
+    raw_data_sorted = _sort_data(raw_data)
     previous = None
     previous_fn = None
+    previous_mi = None
     changes = {}
+    mi_changes = {}
     for bs, filename in raw_data_sorted:
+        m_i = _filtered_machine_info(bs['machine_info'])
         if previous is None:
             # this is the first benchmark run we are looking at, so nothing to
             # compare here:
             previous = bs
+            previous_mi = m_i
             previous_fn = filename
             continue
         this_set = _version_set(bs['machine_info']['freeze'])
@@ -52,9 +83,19 @@ def get_version_info(raw_data):
                 'minus': list(sorted(prev_set - this_set, key=lambda v: v[0])),
                 'plus': list(sorted(this_set - prev_set, key=lambda v: v[0])),
             }
+
+        if m_i != previous_mi:
+            # machine info changed, make a diff:
+            mi_changes[(previous_fn, filename)] = {
+                'old_mi': previous_mi,
+                'new_mi': m_i,
+                'diff': _json_diff(previous_mi, m_i),
+            }
+
         previous = bs
         previous_fn = filename
-    return changes
+        previous_mi = m_i
+    return changes, mi_changes
 
 
 def load_data():
@@ -77,11 +118,11 @@ def load_data():
     # use this as y axis to "dodge" individual runs:
     df["y_factor"] = list(zip(df['name'], df['run_short']))
 
-    version_info = get_version_info(raw_data)
+    version_info, machine_info_diff = get_version_info(raw_data)
 
-    return df, version_info, filenames
+    return df, version_info, machine_info_diff, filenames
 
-df, version_info, filenames = load_data()
+df, version_info, machine_info_diff, filenames = load_data()
 
 selectable = df["bench_group"].unique().tolist()
 
@@ -153,10 +194,22 @@ def _format_version_info(version_info):
     return "\n".join(parts)
 
 
+
+def _format_machine_diff(machine_info_diff):
+    parts = ["# Machine differences summary"]
+    for (old_fn, new_fn), changes in machine_info_diff.items():
+        parts.append(f"## {old_fn} → {new_fn}")
+        diff = ["```diff"] + [changes['diff']] + ["```"]
+        parts.append("\n".join(diff))
+    return "\n".join(parts)
+
+
 version_info_md = pn.pane.Markdown(object=_format_version_info(version_info))
+machine_info_md = pn.pane.Markdown(object=_format_machine_diff(machine_info_diff))
 
 pn.Column(
     select_test,
     bokeh_plot,
     version_info_md,
+    machine_info_md,
 ).servable()
