@@ -21,10 +21,18 @@ pn.state.template.param.update(title="LiberTEM Benchmarks")
 
 
 def to_dataframe(raw_json_object, run: str):
-    header = ["bench_group", "name", "fullname", "raw_time", "run", "run_short"]
+    header = ["commit", "bench_group", "name", "fullname", "raw_time", "run", "run_short"]
     run_full = f"{run} @ {raw_json_object['machine_info']['node']}"
     rows = [
-        (bench['group'], bench['name'], bench['fullname'], value, run_full, run)
+        (
+            raw_json_object['commit_info']['id'][:8],
+            bench['group'],
+            bench['name'],
+            bench['fullname'],
+            value,
+            run_full,
+            run
+        )
         for bench in raw_json_object["benchmarks"]
         for value in bench['stats']['data']
     ]
@@ -150,6 +158,8 @@ def get_data(group_name: str):
 TOOLTIPS = [
     ('Run info', '@run'),
     ('Name', '@name'),
+    ('Time', '@raw_time{0.000000}'),
+    ('Commit', '@commit'),
 ]
 
 HEIGHT_FACTOR = 25
