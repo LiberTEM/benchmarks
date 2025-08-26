@@ -45,16 +45,24 @@ def _filtered_machine_info(machine_info):
     del filtered['freeze']
     # node will be different in most runs:
     del filtered['node']
+
+    # frequency is measured in a dubious way and as such not relevant:
+    filtered['cpu'].pop('hz_advertised_friendly', None)
+    filtered['cpu'].pop('hz_advertised', None)
+    filtered['cpu'].pop('hz_actual', None)
+    filtered['cpu'].pop('hz_actual_friendly', None)
     return filtered
 
 
-def _json_diff(a, b):
+def _json_diff(a, b, name_a=None, name_b=None):
     astr = json.dumps(a, indent=2)
     bstr = json.dumps(b, indent=2)
     return "".join(
         difflib.unified_diff(
             [x + "\n" for x in astr.split("\n")],
-            [x + "\n" for x in bstr.split("\n")]
+            [x + "\n" for x in bstr.split("\n")],
+            fromfile=name_a,
+            tofile=name_b,
         )
     )
 
@@ -89,7 +97,7 @@ def get_version_info(raw_data):
             mi_changes[(previous_fn, filename)] = {
                 'old_mi': previous_mi,
                 'new_mi': m_i,
-                'diff': _json_diff(previous_mi, m_i),
+                'diff': _json_diff(previous_mi, m_i, name_a=previous_fn, name_b=filename),
             }
 
         previous = bs
