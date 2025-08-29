@@ -12,6 +12,7 @@ from bokeh.models import ColumnDataSource
 from bokeh.models.ranges import FactorRange
 from bokeh.plotting import figure
 from bokeh.transform import jitter
+from bokeh.resources import INLINE
 import pandas as pd
 import bokeh.palettes as bp
 from bokeh.transform import factor_cmap
@@ -19,10 +20,17 @@ from bokeh.transform import factor_cmap
 pn.extension(sizing_mode="stretch_width", template="fast")
 pn.state.template.param.update(title="LiberTEM Benchmarks")
 
+# TODO
+# - [ ] sticky axis? 
+# - [ ] better visualization after zooming in!
+# - [ ] better scalability -> need an overview for many benchmarks; more compact view somehow?
+
+
 
 def to_dataframe(raw_json_object, run: str):
     header = ["commit", "bench_group", "name", "fullname", "raw_time", "run", "run_short"]
-    run_full = f"{run} @ {raw_json_object['machine_info']['node']}"
+    short_commit = raw_json_object['commit_info']['id'][:8]
+    run_full = f"{run} / {short_commit}"
     rows = [
         (
             raw_json_object['commit_info']['id'][:8],
@@ -118,6 +126,7 @@ def load_data():
     dataframes = []
     filenames = []
     raw_data = []
+    fn_to_commit = {}
     for i in range(6):
         fn = f"{i + 1:05d}.json"
         r = requests.get(
@@ -128,17 +137,18 @@ def load_data():
         raw_data.append((raw_json, fn))
         df_this = to_dataframe(raw_json, fn)
         filenames.append(fn)
+        fn_to_commit[fn] = raw_json['commit_info']['id']
         dataframes.append(df_this)
 
     df = pd.concat(dataframes, ignore_index=True)
     # use this as y axis to "dodge" individual runs:
-    df["y_factor"] = list(zip(df['name'], df['run_short']))
+    df["y_factor"] = list(zip(df['name'], df['run']))
 
     version_info, machine_info_diff = get_version_info(raw_data)
 
-    return df, version_info, machine_info_diff, filenames
+    return df, version_info, machine_info_diff, filenames, fn_to_commit
 
-df, version_info, machine_info_diff, filenames = load_data()
+df, version_info, machine_info_diff, filenames, fn_to_commit = load_data()
 
 selectable = df["bench_group"].unique().tolist()
 
@@ -180,7 +190,11 @@ p.scatter(
     y=jitter("y_factor", width=0.02, range=p.y_range),
     source=source,
     alpha=0.6,
-    color=factor_cmap(field_name='run_short', palette=bp.Category20[len(filenames)], factors=filenames),
+    color=factor_cmap(
+        field_name='run_short',
+        palette=bp.Category20[len(filenames)],
+        factors=filenames
+    ),
 )
 p.xaxis.axis_label = "Time (s)"
 p.yaxis.axis_label = "Test name"
@@ -225,9 +239,11 @@ def _format_machine_diff(machine_info_diff):
 version_info_md = pn.pane.Markdown(object=_format_version_info(version_info))
 machine_info_md = pn.pane.Markdown(object=_format_machine_diff(machine_info_diff))
 
-pn.Column(
+app = pn.Column(
     select_test,
     bokeh_plot,
     version_info_md,
     machine_info_md,
 ).servable()
+
+# app.save('test.html', resources=INLINE)
