@@ -1,10 +1,11 @@
-# deps: panel, bokeh, pygments, pandas, requests
+# deps: panel, bokeh, pygments, pandas, requests, click
 
 import datetime
 import copy
 import difflib
 import json
 
+import click
 import requests
 import panel as pn
 from panel.io import hold
@@ -21,10 +22,10 @@ pn.extension(sizing_mode="stretch_width", template="fast")
 pn.state.template.param.update(title="LiberTEM Benchmarks")
 
 # TODO
-# - [ ] sticky axis? 
 # - [ ] better visualization after zooming in!
 # - [ ] better scalability -> need an overview for many benchmarks; more compact view somehow?
-
+#   - [ ] maybe sticky x axis, such that it's always visible?
+#   - [ ] easier to use: limit zoom in y direction such that it doesn't zoom in too much maybe?
 
 
 def to_dataframe(raw_json_object, run: str):
@@ -70,7 +71,7 @@ def _filtered_machine_info(machine_info):
     return filtered
 
 
-def _json_diff(a, b, name_a=None, name_b=None):
+def _json_diff(a, b, name_a="", name_b=""):
     astr = json.dumps(a, indent=2)
     bstr = json.dumps(b, indent=2)
     return "".join(
@@ -127,11 +128,15 @@ def load_data():
     filenames = []
     raw_data = []
     fn_to_commit = {}
-    for i in range(6):
+    for i in range(8):
         fn = f"{i + 1:05d}.json"
-        r = requests.get(
+        url = (
             f"https://raw.githubusercontent.com/LiberTEM/benchmarks/refs/"
             f"heads/main/collected/LiberTEM/LiberTEM/cpu/{fn}"
+        )
+        print(f"downloading {url}")
+        r = requests.get(
+            url=url
         )
         raw_json = r.json()
         raw_data.append((raw_json, fn))
@@ -148,19 +153,8 @@ def load_data():
 
     return df, version_info, machine_info_diff, filenames, fn_to_commit
 
-df, version_info, machine_info_diff, filenames, fn_to_commit = load_data()
 
-selectable = df["bench_group"].unique().tolist()
-
-select_test = pn.widgets.Select(
-    name="Test name",
-    value=selectable[0],
-    options=selectable,
-)
-selected_group = select_test.value
-
-
-def get_data(group_name: str):
+def get_data(df, group_name: str):
     test_data = df.groupby("bench_group").get_group(group_name)
     return test_data
 
@@ -174,45 +168,35 @@ TOOLTIPS = [
 
 HEIGHT_FACTOR = 25
 
-source_data = get_data(selected_group)
-categories = list(sorted(source_data["y_factor"].unique().tolist()))
-source = ColumnDataSource(data=source_data)
-p = figure(
-    width=1200,
-    height=HEIGHT_FACTOR * len(categories),
-    y_range=FactorRange(*categories, group_padding=2, subgroup_padding=0.1),
-    title="Test run",
-    tooltips=TOOLTIPS,
-)
-p.sizing_mode = 'stretch_width'
-p.scatter(
-    x='raw_time',
-    y=jitter("y_factor", width=0.02, range=p.y_range),
-    source=source,
-    alpha=0.6,
-    color=factor_cmap(
-        field_name='run_short',
-        palette=bp.Category20[len(filenames)],
-        factors=filenames
-    ),
-)
-p.xaxis.axis_label = "Time (s)"
-p.yaxis.axis_label = "Test name"
-p.ygrid.grid_line_color = None
-bokeh_plot = pn.pane.Bokeh(p)
 
-
-@hold()
-def update_results(e):
-    group_name = e.new
-    new_data = get_data(group_name)
-    categories = list(sorted(new_data["y_factor"].unique().tolist()))
-    p.y_range.factors = categories
-    p.height = HEIGHT_FACTOR * len(categories)
-    source.update(data=new_data)
-
-
-select_test.param.watch(update_results, "value")
+def get_plot(df, selected_group, filenames):
+    source_data = get_data(df, selected_group)
+    categories = list(sorted(source_data["y_factor"].unique().tolist()))
+    source = ColumnDataSource(data=source_data)
+    p = figure(
+        width=1200,
+        height=HEIGHT_FACTOR * len(categories),
+        y_range=FactorRange(*categories, group_padding=2, subgroup_padding=0.1),
+        title="Test run",
+        tooltips=TOOLTIPS,
+    )
+    p.sizing_mode = 'stretch_width'
+    p.scatter(
+        x='raw_time',
+        y=jitter("y_factor", width=0.02, range=p.y_range),
+        source=source,
+        alpha=0.6,
+        color=factor_cmap(
+            field_name='run_short',
+            palette=bp.Category20[len(filenames)],
+            factors=filenames
+        ),
+    )
+    p.xaxis.axis_label = "Time (s)"
+    p.yaxis.axis_label = "Test name"
+    p.ygrid.grid_line_color = None
+    bokeh_plot = pn.pane.Bokeh(p)
+    return bokeh_plot, p, source
 
 
 def _format_version_info(version_info):
@@ -236,14 +220,65 @@ def _format_machine_diff(machine_info_diff):
     return "\n".join(parts)
 
 
-version_info_md = pn.pane.Markdown(object=_format_version_info(version_info))
-machine_info_md = pn.pane.Markdown(object=_format_machine_diff(machine_info_diff))
 
-app = pn.Column(
-    select_test,
-    bokeh_plot,
-    version_info_md,
-    machine_info_md,
-).servable()
+def make_app():
+    df, version_info, machine_info_diff, filenames, fn_to_commit = load_data()
 
-# app.save('test.html', resources=INLINE)
+    selectable = df["bench_group"].unique().tolist()
+
+    select_test_group = pn.widgets.Select(
+        name="Test group",
+        value=selectable[0],
+        options=selectable,
+    )
+    selected_group = select_test_group.value
+
+    bokeh_plot, bokeh_plot_figure, source = get_plot(
+        df=df,
+        selected_group=selected_group,
+        filenames=filenames,
+    )
+
+    @hold()
+    def update_results(e):
+        group_name = e.new
+        new_data = get_data(df=df, group_name=group_name)
+        categories = list(sorted(new_data["y_factor"].unique().tolist()))
+        bokeh_plot_figure.y_range.factors = categories
+        bokeh_plot_figure.height = HEIGHT_FACTOR * len(categories)
+        source.update(data=new_data)
+
+
+    select_test_group.param.watch(update_results, "value")
+
+    version_info_md = pn.pane.Markdown(object=_format_version_info(version_info))
+    machine_info_md = pn.pane.Markdown(object=_format_machine_diff(machine_info_diff))
+    app = pn.Column(
+        select_test_group,
+        bokeh_plot,
+        version_info_md,
+        machine_info_md,
+    )
+    return app
+
+
+def serve():
+    app = make_app()
+    app.servable()
+
+
+@click.group(invoke_without_command=True)
+@click.pass_context
+def cli(ctx):
+    if ctx.invoked_subcommand is None:
+        serve()
+
+
+@cli.command()
+def render():
+    app = make_app()
+    app.save('viz.html', resources=INLINE, embed=True, embed_json=False)
+
+
+if __name__ == "__main__" or __name__.startswith("bokeh_app"):
+    cli(standalone_mode=False)
