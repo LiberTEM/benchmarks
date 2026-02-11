@@ -267,7 +267,7 @@ def serve():
     app.servable()
 
 
-@click.group(invoke_without_command=True)
+@click.group(invoke_without_command=True)  # run by default, for `panel serve ...`
 @click.pass_context
 def cli(ctx):
     if ctx.invoked_subcommand is None:
@@ -281,4 +281,5 @@ def render():
 
 
 if __name__ == "__main__" or __name__.startswith("bokeh_app"):
+    # standalone mode, in order to prevent click from calling sys.exit(...):
     cli(standalone_mode=False)
