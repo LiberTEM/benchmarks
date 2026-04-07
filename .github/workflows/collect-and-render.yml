@@ -69,7 +69,7 @@ jobs:
         run: git add ./collected ./rendered && git commit -m "Add benchmark from ${{ github.event.inputs.source_repo }}" && git push
 
       - name: Setup Pages
-        uses: actions/configure-pages@v5
+        uses: actions/configure-pages@v6
       - name: Upload rendered benchmarks
         uses: actions/upload-pages-artifact@v3
         with:
