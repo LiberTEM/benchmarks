@@ -34,7 +34,7 @@ jobs:
       - name: Download artifact
         env:
           GH_TOKEN: ${{ secrets.BENCH_GH_TOKEN }}
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: artifact
           github-token: ${{ secrets.BENCH_GH_TOKEN }}
